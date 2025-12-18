@@ -21,10 +21,19 @@ COPY ./prisma ./prisma
 COPY ./manager ./manager
 COPY ./.env.example ./.env
 COPY ./runWithProvider.js ./
+COPY ./.gitmodules ./.gitmodules
+
+# Copiar submódulo papi (necessário para o build)
+COPY ./papi ./papi
 
 COPY ./Docker ./Docker
 
 RUN chmod +x ./Docker/scripts/* && dos2unix ./Docker/scripts/*
+
+# Se o diretório papi não existir, tentar inicializar submódulos (caso build via git clone)
+RUN if [ ! -d "./papi" ] && [ -f ".gitmodules" ]; then \
+    git submodule update --init --recursive || echo "Submodules already initialized or not available"; \
+    fi
 
 RUN ./Docker/scripts/generate_database.sh
 

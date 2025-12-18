@@ -17,6 +17,15 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Verify submodules
+        run: |
+          if [ ! -d "papi" ]; then
+            echo "Error: papi submodule not found"
+            exit 1
+          fi
+          echo "Submodule papi verified"
 
       - name: Docker meta
         id: meta
