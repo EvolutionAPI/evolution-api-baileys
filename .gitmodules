@@ -3,5 +3,5 @@
 	url = https://github.com/EvolutionAPI/evolution-manager-v2.git
 [submodule "papi"]
 	path = papi
-	url = https://github.com/mktpastorini/papi.git
+	url = https://github.com/DavidsonGomes/papi.git
 	branch = main
