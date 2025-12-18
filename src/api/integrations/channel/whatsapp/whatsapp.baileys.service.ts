@@ -3187,12 +3187,8 @@ export class BaileysStartupService extends ChannelStartupService {
         footer: data.footer,
       });
 
-      const carouselContent = generateCarouselMessage({
-        cards,
-        title: data.title,
-        body: data.body,
-        footer: data.footer,
-      });
+      // generateCarouselMessage aceita apenas { cards } (igual ao PAPI)
+      const carouselContent = generateCarouselMessage({ cards });
 
       this.logger.verbose({ message: '[Carousel] Sending message via relayMessage...' });
       this.logger.verbose({ message: '[Carousel] JID Original', jid: data.number });
