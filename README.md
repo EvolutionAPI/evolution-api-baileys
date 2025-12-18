@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Docker Image](https://img.shields.io/badge/Docker-image-blue)](https://hub.docker.com/r/evoapicloud/evolution-api)
+[![Docker Image](https://img.shields.io/badge/Docker-image-blue)](https://hub.docker.com/r/evoapicloud/evolution-api-baileys)
 [![Whatsapp Group](https://img.shields.io/badge/Group-WhatsApp-%2322BC18)](https://evolution-api.com/whatsapp)
 [![Discord Community](https://img.shields.io/badge/Discord-Community-blue)](https://evolution-api.com/discord)
 [![Postman Collection](https://img.shields.io/badge/Postman-Collection-orange)](https://evolution-api.com/postman) 
@@ -46,12 +46,6 @@ Evolution API supports multiple types of connections to WhatsApp, enabling flexi
 
 Evolution API supports various integrations to enhance its functionality. Below is a list of available integrations and their uses:
 
-- [Typebot](https://typebot.io/):
-  - Build conversational bots using Typebot, integrated directly into Evolution with trigger management.
-
-- [Chatwoot](https://www.chatwoot.com/):
-  - Direct integration with Chatwoot for handling customer service for your business.
-
 - [RabbitMQ](https://www.rabbitmq.com/):
   - Receive events from the Evolution API via RabbitMQ.
 
@@ -63,12 +57,6 @@ Evolution API supports various integrations to enhance its functionality. Below 
 
 - [Socket.io](https://socket.io/):
   - Receive events from the Evolution API via WebSocket.
-
-- [Dify](https://dify.ai/):
-  - Integrate your Evolution API directly with Dify AI for seamless trigger management and multiple agents.
-
-- [OpenAI](https://openai.com/):
-  - Integrate your Evolution API with OpenAI for AI capabilities, including audio-to-text conversion, available across all Evolution integrations.
 
 - Amazon S3 / Minio:
   - Store media files received in [Amazon S3](https://aws.amazon.com/pt/s3/) or [Minio](https://min.io/).
