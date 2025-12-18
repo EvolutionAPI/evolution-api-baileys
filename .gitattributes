@@ -1,0 +1,3 @@
+# Force submodule updates on pull
+* submodule=diff
+

@@ -1,3 +1,7 @@
 [submodule "evolution-manager-v2"]
 	path = evolution-manager-v2
 	url = https://github.com/EvolutionAPI/evolution-manager-v2.git
+[submodule "papi"]
+	path = papi
+	url = https://github.com/mktpastorini/papi.git
+	branch = main

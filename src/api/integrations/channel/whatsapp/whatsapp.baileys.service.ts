@@ -39,6 +39,7 @@ import {
   Options,
   SendAudioDto,
   SendButtonsDto,
+  SendCarouselDto,
   SendContactDto,
   SendListDto,
   SendLocationDto,
@@ -65,7 +66,6 @@ import {
   CacheConf,
   ConfigService,
   configService,
-  ConfigSessionPhone,
   Database,
   Log,
   ProviderSession,
@@ -86,8 +86,10 @@ import useMultiFileAuthStatePrisma from '@utils/use-multi-file-auth-state-prisma
 import { AuthStateProvider } from '@utils/use-multi-file-auth-state-provider-files';
 import { useMultiFileAuthStateRedisDb } from '@utils/use-multi-file-auth-state-redis-db';
 import axios from 'axios';
+import type { Label, LabelAssociation } from 'baileys';
 import makeWASocket, {
   AnyMessageContent,
+  Browsers,
   BufferedEventData,
   BufferJSON,
   CacheStore,
@@ -100,6 +102,9 @@ import makeWASocket, {
   DisconnectReason,
   downloadContentFromMessage,
   downloadMediaMessage,
+  generateButtonMessage,
+  generateCarouselMessage,
+  generateListMessage,
   generateWAMessageFromContent,
   getAggregateVotesInPollMessage,
   GetCatalogOptions,
@@ -120,15 +125,12 @@ import makeWASocket, {
   Product,
   proto,
   UserFacingSocketConfig,
-  WABrowserDescription,
   WAMediaUpload,
   WAMessage,
   WAMessageKey,
   WAPresence,
   WASocket,
 } from 'baileys';
-import { Label } from 'baileys/lib/Types/Label';
-import { LabelAssociation } from 'baileys/lib/Types/LabelAssociation';
 import { isArray, isBase64, isURL } from 'class-validator';
 import { createHash } from 'crypto';
 import EventEmitter2 from 'eventemitter2';
@@ -136,7 +138,6 @@ import FormData from 'form-data';
 import Long from 'long';
 import mimeTypes from 'mime-types';
 import NodeCache from 'node-cache';
-import { release } from 'os';
 import { join } from 'path';
 import P from 'pino';
 import qrcode, { QRCodeToDataURLOptions } from 'qrcode';
@@ -581,7 +582,7 @@ export class BaileysStartupService extends ChannelStartupService {
   private async createClient(number?: string): Promise<WASocket> {
     this.instance.authState = await this.defineAuthState();
 
-    const session = this.configService.get<ConfigSessionPhone>('CONFIG_SESSION_PHONE');
+    // const session = this.configService.get<ConfigSessionPhone>('CONFIG_SESSION_PHONE');
 
     let browserOptions = {};
 
@@ -590,10 +591,9 @@ export class BaileysStartupService extends ChannelStartupService {
 
       this.logger.info(`Phone number: ${number}`);
     } else {
-      const browser: WABrowserDescription = [session.CLIENT, session.NAME, release()];
-      browserOptions = { browser };
-
-      this.logger.info(`Browser: ${browser}`);
+      // Usar exatamente como no papi/instanceManager.ts
+      browserOptions = { browser: Browsers.ubuntu('Chrome') };
+      this.logger.info(`Browser: ${Browsers.ubuntu('Chrome')}`);
     }
 
     // Fetch latest WhatsApp Web version automatically
@@ -3042,78 +3042,180 @@ export class BaileysStartupService extends ChannelStartupService {
         throw new BadRequestException('PIX button cannot be mixed with other button types');
       }
 
-      const message: proto.IMessage = {
+      // Resolver JID antes de gerar a mensagem (igual ao PAPI)
+      const resolvedJid = await this.resolveJid(data.number);
+
+      // PIX usa nativeFlowMessage (tratamento especial)
+      const message = {
         viewOnceMessage: {
           message: {
             interactiveMessage: {
               nativeFlowMessage: {
                 buttons: [{ name: this.mapType.get('pix'), buttonParamsJson: this.toJSONString(data.buttons[0]) }],
-                messageParamsJson: JSON.stringify({ from: 'api', templateId: v4() }),
+                messageParamsJson: JSON.stringify({ from: 'api', templateId: cuid() }),
               },
             },
           },
         },
-      };
+      } as any;
 
-      return await this.sendMessageWithTyping(data.number, message, {
-        delay: data?.delay,
-        presence: 'composing',
-        quoted: data?.quoted,
-        mentionsEveryOne: data?.mentionsEveryOne,
-        mentioned: data?.mentioned,
-      });
+      this.logger.verbose({ message: '[PIX] Sending via sendMessage...' });
+      this.logger.verbose({ message: '[PIX] Content', content: JSON.stringify(message, null, 2) });
+
+      // Enviar diretamente com sendMessage (igual ao PAPI)
+      await this.client.sendMessage(resolvedJid, message);
+
+      this.logger.verbose({ message: '[PIX] Message sent successfully to', jid: resolvedJid });
+      return { success: true, jid: resolvedJid };
     }
 
-    const generate = await (async () => {
-      if (data?.thumbnailUrl) {
-        return await this.prepareMediaMessage({ mediatype: 'image', media: data.thumbnailUrl });
-      }
-    })();
+    try {
+      // Resolver JID antes de gerar a mensagem (igual ao PAPI)
+      const resolvedJid = await this.resolveJid(data.number);
 
-    const buttons = data.buttons.map((value) => {
-      return { name: this.mapType.get(value.type), buttonParamsJson: this.toJSONString(value) };
-    });
+      // Mapear para o formato do papi/server.ts: { jid, text, footer, buttons, headerType, mediaUrl }
+      // generateButtonMessage(buttons, text, footer, headerType, mediaUrl)
+      // Combinar title e description em text (se description existir, usa ele; senão usa title)
+      const text = data.description || data.title || '';
+      const footer = data.footer || '';
+      const headerType = data?.thumbnailUrl ? 'image' : undefined;
+      const mediaUrl = data?.thumbnailUrl || '';
 
-    const message: proto.IMessage = {
-      viewOnceMessage: {
-        message: {
-          interactiveMessage: {
-            body: {
-              text: (() => {
-                let t = '*' + data.title + '*';
-                if (data?.description) {
-                  t += '\n\n';
-                  t += data.description;
-                  t += '\n';
-                }
-                return t;
-              })(),
-            },
-            footer: { text: data?.footer },
-            header: (() => {
-              if (generate?.message?.imageMessage) {
-                return {
-                  hasMediaAttachment: !!generate.message.imageMessage,
-                  imageMessage: generate.message.imageMessage,
-                };
-              }
-            })(),
-            nativeFlowMessage: {
-              buttons: buttons,
-              messageParamsJson: JSON.stringify({ from: 'api', templateId: v4() }),
-            },
+      // Usar generateButtonMessage exatamente como no papi/server.ts
+      const buttonsInteractive = generateButtonMessage(data.buttons, text, footer, headerType, mediaUrl);
+
+      this.logger.verbose({ message: '[Buttons] Sending via sendMessage...' });
+      this.logger.verbose({ message: '[Buttons] Content', content: JSON.stringify(buttonsInteractive, null, 2) });
+
+      // Enviar diretamente com sendMessage (igual ao PAPI)
+      await this.client.sendMessage(resolvedJid, {
+        viewOnceMessage: {
+          message: {
+            interactiveMessage: buttonsInteractive,
           },
         },
-      },
-    };
+      } as any);
 
-    return await this.sendMessageWithTyping(data.number, message, {
-      delay: data?.delay,
-      presence: 'composing',
-      quoted: data?.quoted,
-      mentionsEveryOne: data?.mentionsEveryOne,
-      mentioned: data?.mentioned,
-    });
+      this.logger.verbose({ message: '[Buttons] Message sent successfully to', jid: resolvedJid });
+      return { success: true, jid: resolvedJid };
+    } catch (error) {
+      this.logger.error({ message: '[Buttons] Error sending button message', error });
+      throw new InternalServerErrorException('Failed to send button message', error?.toString());
+    }
+  }
+
+  public async carouselMessage(data: SendCarouselDto) {
+    try {
+      // Resolver JID antes de gerar a mensagem (igual ao PAPI)
+      const resolvedJid = await this.resolveJid(data.number);
+
+      this.logger.verbose({ message: '[Carousel] Generating message content...' });
+
+      // Mapear cards do formato da API para o formato do PAPI
+      const cards: any[] =
+        data.cards && data.cards.length > 0
+          ? data.cards.map((card: any) => ({
+              header: {
+                title: card.header?.title || card.title || 'Produto',
+                subtitle: card.header?.subtitle || card.footer || '',
+                imageUrl: card.header?.imageUrl || card.imageUrl,
+                videoUrl: card.header?.videoUrl,
+              },
+              body: card.body || '',
+              footer: card.footer || '',
+              buttons: (card.buttons || []).map((btn: any) => {
+                // Converter formato simplificado para formato Baileys
+                if (btn.id && btn.title) {
+                  return { displayText: btn.title, quickReplyButton: { id: btn.id } };
+                }
+                if (btn.displayText && btn.quickReplyButton) {
+                  return { displayText: btn.displayText, quickReplyButton: btn.quickReplyButton };
+                }
+                if (btn.displayText && btn.urlButton) {
+                  return { displayText: btn.displayText, urlButton: btn.urlButton };
+                }
+                if (btn.displayText && btn.callButton) {
+                  return { displayText: btn.displayText, callButton: btn.callButton };
+                }
+                if (btn.displayText && btn.copyCodeButton) {
+                  return { displayText: btn.displayText, copyCodeButton: btn.copyCodeButton };
+                }
+                return btn;
+              }),
+            }))
+          : [];
+
+      // Upload media for cards (igual ao PAPI)
+      for (const card of cards) {
+        if (card.header?.imageUrl) {
+          try {
+            this.logger.verbose({ message: `[Carousel] Uploading image for card: ${card.header.title}` });
+            const mediaInput = isURL(card.header.imageUrl)
+              ? { url: card.header.imageUrl }
+              : Buffer.from(card.header.imageUrl, 'base64');
+
+            const message = await prepareWAMessageMedia({ image: mediaInput } as any, {
+              upload: this.client.waUploadToServer,
+            });
+            card.header.imageMessage = message.imageMessage;
+          } catch (error) {
+            this.logger.warn({ message: `[Carousel] Failed to upload image for card ${card.header.title}`, error });
+          }
+        }
+        if (card.header?.videoUrl) {
+          try {
+            this.logger.verbose({ message: `[Carousel] Uploading video for card: ${card.header.title}` });
+            const mediaInput = isURL(card.header.videoUrl)
+              ? { url: card.header.videoUrl }
+              : Buffer.from(card.header.videoUrl, 'base64');
+
+            const message = await prepareWAMessageMedia({ video: mediaInput } as any, {
+              upload: this.client.waUploadToServer,
+            });
+            card.header.videoMessage = message.videoMessage;
+          } catch (error) {
+            this.logger.warn({ message: `[Carousel] Failed to upload video for card ${card.header.title}`, error });
+          }
+        }
+      }
+
+      this.logger.verbose({ message: '[Carousel] Cards', cards: JSON.stringify(cards, null, 2) });
+      this.logger.verbose({
+        message: '[Carousel] Title, Body, Footer',
+        title: data.title,
+        body: data.body,
+        footer: data.footer,
+      });
+
+      const carouselContent = generateCarouselMessage({
+        cards,
+        title: data.title,
+        body: data.body,
+        footer: data.footer,
+      });
+
+      this.logger.verbose({ message: '[Carousel] Sending message via relayMessage...' });
+      this.logger.verbose({ message: '[Carousel] JID Original', jid: data.number });
+      this.logger.verbose({ message: '[Carousel] JID Resolvido', jid: resolvedJid });
+
+      // Enviar diretamente como interactiveMessage (sem viewOnceMessage wrapper) - igual ao PAPI
+      const messageContent: proto.IMessage = {
+        interactiveMessage: carouselContent,
+      };
+
+      this.logger.verbose({
+        message: '[Carousel] Message Content (sem viewOnce)',
+        content: JSON.stringify(messageContent, null, 2),
+      });
+
+      await this.client.relayMessage(resolvedJid, messageContent, {});
+      this.logger.verbose({ message: '[Carousel] Message sent successfully to', jid: resolvedJid });
+
+      return { success: true, jid: resolvedJid, jidOriginal: data.number };
+    } catch (error) {
+      this.logger.error({ message: '[Carousel] Failed to send message', error });
+      throw new InternalServerErrorException('Failed to send carousel message', error?.toString());
+    }
   }
 
   public async locationMessage(data: SendLocationDto) {
@@ -3137,27 +3239,145 @@ export class BaileysStartupService extends ChannelStartupService {
     );
   }
 
+  /**
+   * Normaliza um número de telefone para o formato JID do WhatsApp
+   * Trata especialmente números brasileiros com o 9º dígito
+   */
+  private normalizeJid(phone: string): string {
+    if (!phone) return phone;
+
+    // Se já é um JID de grupo, retorna como está
+    if (phone.includes('@g.us') || phone.includes('@broadcast') || phone.includes('@lid')) {
+      return phone;
+    }
+
+    // Remove o sufixo @s.whatsapp.net se existir
+    let number = phone.replace('@s.whatsapp.net', '').replace('@c.us', '');
+
+    // Remove caracteres não numéricos (exceto +)
+    number = number.replace(/[^\d+]/g, '');
+
+    // Remove o + do início se existir
+    number = number.replace(/^\+/, '');
+
+    // Tratamento especial para números brasileiros
+    if (number.startsWith('55')) {
+      const withoutCountry = number.substring(2); // Remove o 55
+
+      if (withoutCountry.length === 11) {
+        const ddd = withoutCountry.substring(0, 2);
+        const ninthDigit = withoutCountry.substring(2, 3);
+        const restOfNumber = withoutCountry.substring(3);
+
+        if (ninthDigit === '9') {
+          const firstDigitAfterNine = restOfNumber.substring(0, 1);
+          const dddNum = parseInt(ddd);
+
+          // Para DDDs fora de SP (20+), remove o 9 se presente
+          if (dddNum >= 20 && ['9', '8', '7'].includes(firstDigitAfterNine)) {
+            number = '55' + ddd + restOfNumber;
+            this.logger.verbose(`[JID] Número brasileiro normalizado (removido 9): ${phone} -> ${number}`);
+          }
+        }
+      }
+    }
+
+    return `${number}@s.whatsapp.net`;
+  }
+
+  /**
+   * Verifica se um número existe no WhatsApp e retorna o JID correto
+   * Útil para resolver problemas de 9º dígito e LID
+   */
+  private async resolveJid(phone: string): Promise<string> {
+    const normalizedJid = this.normalizeJid(phone);
+    this.logger.verbose({ message: `[JID] Iniciando resolução: ${phone} -> normalizado: ${normalizedJid}` });
+
+    try {
+      // Tenta verificar se o número existe
+      const numberOnly = normalizedJid.replace('@s.whatsapp.net', '');
+      this.logger.verbose({ message: `[JID] Verificando número: ${numberOnly}` });
+
+      const results = await this.client.onWhatsApp(numberOnly);
+      this.logger.verbose({ message: '[JID] Resultado onWhatsApp', results });
+
+      const [result] = results || [];
+
+      if (result?.exists && result?.jid) {
+        this.logger.verbose({ message: `[JID] ✓ Número verificado: ${phone} -> ${result.jid}` });
+        if (result.jid.includes('@lid')) {
+          this.logger.verbose({ message: `[JID] ⚠ Número usa formato LID (novo formato Meta)` });
+        }
+        return result.jid;
+      }
+
+      this.logger.verbose({ message: `[JID] Número não encontrado diretamente, tentando variações...` });
+
+      // Se não encontrou, tenta com/sem o 9
+      const number = numberOnly;
+      if (number.startsWith('55') && number.length === 12) {
+        // Tenta adicionar o 9
+        const withNine = number.substring(0, 4) + '9' + number.substring(4);
+        this.logger.verbose({ message: `[JID] Tentando com 9: ${withNine}` });
+        const [resultWithNine] = (await this.client.onWhatsApp(withNine)) || [];
+        if (resultWithNine?.exists && resultWithNine?.jid) {
+          this.logger.verbose({ message: `[JID] ✓ Número encontrado com 9: ${phone} -> ${resultWithNine.jid}` });
+          return resultWithNine.jid;
+        }
+      } else if (number.startsWith('55') && number.length === 13) {
+        // Tenta remover o 9
+        const withoutNine = number.substring(0, 4) + number.substring(5);
+        this.logger.verbose({ message: `[JID] Tentando sem 9: ${withoutNine}` });
+        const [resultWithoutNine] = (await this.client.onWhatsApp(withoutNine)) || [];
+        if (resultWithoutNine?.exists && resultWithoutNine?.jid) {
+          this.logger.verbose({ message: `[JID] ✓ Número encontrado sem 9: ${phone} -> ${resultWithoutNine.jid}` });
+          return resultWithoutNine.jid;
+        }
+      }
+
+      this.logger.verbose({ message: `[JID] ✗ Número não encontrado em nenhuma variação` });
+    } catch (error) {
+      this.logger.warn({ message: '[JID] Erro ao verificar número', error });
+    }
+
+    // Retorna o JID normalizado se não conseguiu verificar
+    this.logger.verbose({ message: `[JID] Usando JID normalizado (não verificado): ${normalizedJid}` });
+    return normalizedJid;
+  }
+
   public async listMessage(data: SendListDto) {
-    return await this.sendMessageWithTyping(
-      data.number,
-      {
-        listMessage: {
-          title: data.title,
-          description: data.description,
-          buttonText: data?.buttonText,
-          footerText: data?.footerText,
-          sections: data.sections,
-          listType: 2,
+    try {
+      // Resolver JID antes de gerar a mensagem (igual ao PAPI)
+      const resolvedJid = await this.resolveJid(data.number);
+
+      // Mapear para o formato do papi/server.ts: { jid, title, text, footer, buttonText, sections }
+      // generateListMessage(sections, buttonText, text, title, footer)
+      const listInteractive = generateListMessage(
+        data.sections,
+        data.buttonText,
+        data.description || '', // text
+        data.title, // title
+        data.footerText || '', // footer
+      );
+
+      this.logger.verbose({ message: '[List] Sending via sendMessage...' });
+      this.logger.verbose({ message: '[List] Content', content: JSON.stringify(listInteractive, null, 2) });
+
+      // Enviar diretamente com sendMessage (igual ao PAPI)
+      await this.client.sendMessage(resolvedJid, {
+        viewOnceMessage: {
+          message: {
+            interactiveMessage: listInteractive,
+          },
         },
-      },
-      {
-        delay: data?.delay,
-        presence: 'composing',
-        quoted: data?.quoted,
-        mentionsEveryOne: data?.mentionsEveryOne,
-        mentioned: data?.mentioned,
-      },
-    );
+      } as any);
+
+      this.logger.verbose({ message: '[List] Message sent successfully to', jid: resolvedJid });
+      return { success: true, jid: resolvedJid };
+    } catch (error) {
+      this.logger.error({ message: '[List] Error sending list message', error });
+      throw new InternalServerErrorException('Failed to send list message', error?.toString());
+    }
   }
 
   public async contactMessage(data: SendContactDto) {

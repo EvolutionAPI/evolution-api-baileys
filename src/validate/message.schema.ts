@@ -448,6 +448,95 @@ export const buttonsMessageSchema: JSONSchema7 = {
   required: ['number'],
 };
 
+export const carouselMessageSchema: JSONSchema7 = {
+  $id: v4(),
+  type: 'object',
+  properties: {
+    number: { ...numberDefinition },
+    title: { type: 'string' },
+    body: { type: 'string' },
+    footer: { type: 'string' },
+    cards: {
+      type: 'array',
+      minItems: 1,
+      maxItems: 10,
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          footer: { type: 'string' },
+          body: { type: 'string' },
+          imageUrl: { type: 'string' },
+          header: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              subtitle: { type: 'string' },
+              imageUrl: { type: 'string' },
+              videoUrl: { type: 'string' },
+            },
+          },
+          buttons: {
+            type: 'array',
+            maxItems: 3,
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                title: { type: 'string' },
+                displayText: { type: 'string' },
+                url: { type: 'string' },
+                phoneNumber: { type: 'string' },
+                quickReplyButton: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                  },
+                },
+                urlButton: {
+                  type: 'object',
+                  properties: {
+                    url: { type: 'string' },
+                  },
+                },
+                callButton: {
+                  type: 'object',
+                  properties: {
+                    phoneNumber: { type: 'string' },
+                  },
+                },
+                copyCodeButton: {
+                  type: 'object',
+                  properties: {
+                    code: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    delay: {
+      type: 'integer',
+      description: 'Enter a value in milliseconds',
+    },
+    quoted: { ...quotedOptionsSchema },
+    everyOne: { type: 'boolean', enum: [true, false] },
+    mentioned: {
+      type: 'array',
+      minItems: 1,
+      uniqueItems: true,
+      items: {
+        type: 'string',
+        pattern: '^\\d+',
+        description: '"mentioned" must be an array of numeric strings',
+      },
+    },
+  },
+  required: ['number', 'cards'],
+};
+
 export const decryptPollVoteSchema: JSONSchema7 = {
   $id: v4(),
   type: 'object',

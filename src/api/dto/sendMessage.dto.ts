@@ -167,3 +167,34 @@ export class SendReactionDto {
   key: proto.IMessageKey;
   reaction: string;
 }
+
+export class CarouselCard {
+  title?: string;
+  footer?: string;
+  body?: string;
+  imageUrl?: string;
+  header?: {
+    title?: string;
+    subtitle?: string;
+    imageUrl?: string;
+    videoUrl?: string;
+  };
+  buttons?: Array<{
+    id?: string;
+    title?: string;
+    displayText?: string;
+    url?: string;
+    phoneNumber?: string;
+    quickReplyButton?: { id: string };
+    urlButton?: { url: string };
+    callButton?: { phoneNumber: string };
+    copyCodeButton?: { code: string };
+  }>;
+}
+
+export class SendCarouselDto extends Metadata {
+  title?: string;
+  body?: string;
+  footer?: string;
+  cards: CarouselCard[];
+}
