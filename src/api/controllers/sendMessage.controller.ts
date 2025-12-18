@@ -15,8 +15,9 @@ import {
   SendTemplateDto,
   SendTextDto,
 } from '@api/dto/sendMessage.dto';
+import { licenseService } from '@api/services/license.service';
 import { WAMonitoringService } from '@api/services/monitor.service';
-import { BadRequestException } from '@exceptions';
+import { BadRequestException, ForbiddenException } from '@exceptions';
 import { isBase64, isURL } from 'class-validator';
 import emojiRegex from 'emoji-regex';
 
@@ -76,10 +77,22 @@ export class SendMessageController {
   }
 
   public async sendButtons({ instanceName }: InstanceDto, data: SendButtonsDto) {
+    if (!(await licenseService.isAllowed())) {
+      const status = await licenseService.getStatus();
+      throw new ForbiddenException(
+        `Interactive messages (buttons) are blocked. License status: ${status.status}. ${status.message}`,
+      );
+    }
     return await this.waMonitor.waInstances[instanceName].buttonMessage(data);
   }
 
   public async sendCarousel({ instanceName }: InstanceDto, data: SendCarouselDto) {
+    if (!(await licenseService.isAllowed())) {
+      const status = await licenseService.getStatus();
+      throw new ForbiddenException(
+        `Interactive messages (carousel) are blocked. License status: ${status.status}. ${status.message}`,
+      );
+    }
     return await this.waMonitor.waInstances[instanceName].carouselMessage(data);
   }
 
@@ -88,6 +101,13 @@ export class SendMessageController {
   }
 
   public async sendList({ instanceName }: InstanceDto, data: SendListDto) {
+    const instancesCount = Object.keys(this.waMonitor.waInstances).length;
+    if (!(await licenseService.isAllowed(instancesCount))) {
+      const status = await licenseService.getStatus();
+      throw new ForbiddenException(
+        `Interactive messages (list) are blocked. License status: ${status.status}. ${status.message}`,
+      );
+    }
     return await this.waMonitor.waInstances[instanceName].listMessage(data);
   }
 

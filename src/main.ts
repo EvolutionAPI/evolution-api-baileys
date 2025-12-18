@@ -44,6 +44,8 @@ async function bootstrap() {
   const prismaRepository = new PrismaRepository(configService);
   await prismaRepository.onModuleInit();
 
+  // PAPI License Manager will be initialized lazily when interactive messages are first used
+
   app.use(
     cors({
       origin(requestOrigin, callback) {
@@ -162,6 +164,9 @@ async function bootstrap() {
   initWA().catch((error) => {
     logger.error('Error loading instances: ' + error);
   });
+
+  // License manager heartbeat is handled internally by the PAPI licenseManager
+  // Instance count is updated only when interactive messages are used (lazy initialization)
 
   onUnexpectedError();
 }

@@ -46,3 +46,6 @@ lerna-debug.log*
 .tool-versions
 
 /prisma/migrations/*
+
+# PAPI License machine ID (should not be committed)
+.machine-id

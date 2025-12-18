@@ -370,6 +370,11 @@ export type EventEmitter = {
   MAX_LISTENERS: number;
 };
 
+export type PapiLicense = {
+  KEY?: string;
+  ADMIN_URL?: string;
+};
+
 export type Production = boolean;
 
 export interface Env {
@@ -403,6 +408,7 @@ export interface Env {
   FACEBOOK: Facebook;
   SENTRY: Sentry;
   EVENT_EMITTER: EventEmitter;
+  PAPI_LICENSE: PapiLicense;
   PRODUCTION?: Production;
 }
 
@@ -845,6 +851,10 @@ export class ConfigService {
       },
       EVENT_EMITTER: {
         MAX_LISTENERS: Number.parseInt(process.env?.EVENT_EMITTER_MAX_LISTENERS) || 50,
+      },
+      PAPI_LICENSE: {
+        KEY: process.env?.PAPI_LICENSE_KEY,
+        ADMIN_URL: process.env?.PAPI_LICENSE_ADMIN_URL || 'https://padmin.intrategica.com.br/',
       },
     };
   }

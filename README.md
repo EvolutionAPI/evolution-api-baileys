@@ -42,6 +42,34 @@ Evolution API supports multiple types of connections to WhatsApp, enabling flexi
   - The Cloud API supports features such as end-to-end encryption, advanced analytics, and more comprehensive customer service tools.
   - To use this API, you must comply with Meta's policies and potentially pay for usage based on message volume and other factors.
 
+## Interactive Messages
+
+Evolution API uses [PAPI (Pastorini API)](https://github.com/mktpastorini/papi) as a Git submodule to provide robust support for interactive WhatsApp messages. PAPI is integrated directly into the codebase and powers the following features:
+
+- **Interactive Buttons**: Send reply buttons, URL buttons, call buttons, and copy code buttons
+- **List Messages**: Create interactive menus with sections and options
+- **Carousel Messages**: Send carousel cards with images, videos, and buttons
+
+These interactive message types are fully integrated and work seamlessly with Evolution API's instance management system. The PAPI library is included as a required submodule and is automatically updated when you pull the repository with `--recursive` or update submodules.
+
+**Note**: When cloning the repository, make sure to use `git clone --recursive` or run `git submodule update --init --recursive` after cloning to ensure the PAPI submodule is properly initialized.
+
+### License Requirement
+
+Interactive messages (buttons, lists, and carousel) require a valid PAPI license to function. To obtain a license key:
+
+1. **Register for a license**: Visit [https://padmin.intrategica.com.br/register.html](https://padmin.intrategica.com.br/register.html) to create an account and request a license key
+2. **Support the project**: Consider contributing to the [PAPI crowdfunding campaign](https://papi.mundoautomatik.com/) to help fund the development of new features
+
+Once you have your license key, configure it in your `.env` file:
+
+```env
+PAPI_LICENSE_KEY=your_license_key_here
+PAPI_LICENSE_ADMIN_URL=https://padmin.intrategica.com.br/
+```
+
+If no license is configured, interactive messages will be disabled. The license system verifies your license status periodically and blocks interactive messages if the license is invalid, expired, or blocked.
+
 ## Integrations
 
 Evolution API supports various integrations to enhance its functionality. Below is a list of available integrations and their uses:
