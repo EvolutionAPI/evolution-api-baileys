@@ -2,7 +2,6 @@ import { authGuard } from '@api/guards/auth.guard';
 import { instanceExistsGuard, instanceLoggedGuard } from '@api/guards/instance.guard';
 import Telemetry from '@api/guards/telemetry.guard';
 import { ChannelRouter } from '@api/integrations/channel/channel.router';
-import { ChatbotRouter } from '@api/integrations/chatbot/chatbot.router';
 import { EventRouter } from '@api/integrations/event/event.router';
 import { StorageRouter } from '@api/integrations/storage/storage.router';
 import { waMonitor } from '@api/server.module';
@@ -22,7 +21,6 @@ import { LabelRouter } from './label.router';
 import { ProxyRouter } from './proxy.router';
 import { MessageRouter } from './sendMessage.router';
 import { SettingsRouter } from './settings.router';
-import { TemplateRouter } from './template.router';
 import { ViewsRouter } from './view.router';
 
 enum HttpStatus {
@@ -220,13 +218,11 @@ router
   .use('/chat', new ChatRouter(...guards).router)
   .use('/business', new BusinessRouter(...guards).router)
   .use('/group', new GroupRouter(...guards).router)
-  .use('/template', new TemplateRouter(configService, ...guards).router)
   .use('/settings', new SettingsRouter(...guards).router)
   .use('/proxy', new ProxyRouter(...guards).router)
   .use('/label', new LabelRouter(...guards).router)
   .use('', new ChannelRouter(configService, ...guards).router)
   .use('', new EventRouter(configService, ...guards).router)
-  .use('', new ChatbotRouter(...guards).router)
   .use('', new StorageRouter(...guards).router);
 
 export { HttpStatus, router };

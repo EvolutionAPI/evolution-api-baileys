@@ -1,15 +1,10 @@
-import { InstanceDto } from '@api/dto/instance.dto';
 import { ProviderFiles } from '@api/provider/sessions';
 import { PrismaRepository } from '@api/repository/repository.service';
 import { CacheService } from '@api/services/cache.service';
 import { WAMonitoringService } from '@api/services/monitor.service';
-import { Integration } from '@api/types/wa.types';
 import { ConfigService } from '@config/env.config';
-import { BadRequestException } from '@exceptions';
 import EventEmitter2 from 'eventemitter2';
 
-import { EvolutionStartupService } from './evolution/evolution.channel.service';
-import { BusinessStartupService } from './meta/whatsapp.business.service';
 import { BaileysStartupService } from './whatsapp/whatsapp.baileys.service';
 
 type ChannelDataType = {
@@ -17,7 +12,6 @@ type ChannelDataType = {
   eventEmitter: EventEmitter2;
   prismaRepository: PrismaRepository;
   cache: CacheService;
-  chatwootCache: CacheService;
   baileysCache: CacheService;
   providerFiles: ProviderFiles;
 };
@@ -51,45 +45,14 @@ export class ChannelController {
     return this.waMonitor;
   }
 
-  public init(instanceData: InstanceDto, data: ChannelDataType) {
-    if (!instanceData.token && instanceData.integration === Integration.WHATSAPP_BUSINESS) {
-      throw new BadRequestException('token is required');
-    }
-
-    if (instanceData.integration === Integration.WHATSAPP_BUSINESS) {
-      return new BusinessStartupService(
-        data.configService,
-        data.eventEmitter,
-        data.prismaRepository,
-        data.cache,
-        data.chatwootCache,
-        data.baileysCache,
-        data.providerFiles,
-      );
-    }
-
-    if (instanceData.integration === Integration.EVOLUTION) {
-      return new EvolutionStartupService(
-        data.configService,
-        data.eventEmitter,
-        data.prismaRepository,
-        data.cache,
-        data.chatwootCache,
-      );
-    }
-
-    if (instanceData.integration === Integration.WHATSAPP_BAILEYS) {
-      return new BaileysStartupService(
-        data.configService,
-        data.eventEmitter,
-        data.prismaRepository,
-        data.cache,
-        data.chatwootCache,
-        data.baileysCache,
-        data.providerFiles,
-      );
-    }
-
-    return null;
+  public init(data: ChannelDataType) {
+    return new BaileysStartupService(
+      data.configService,
+      data.eventEmitter,
+      data.prismaRepository,
+      data.cache,
+      data.baileysCache,
+      data.providerFiles,
+    );
   }
 }

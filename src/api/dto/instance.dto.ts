@@ -6,7 +6,6 @@ export class InstanceDto extends IntegrationDto {
   instanceName: string;
   instanceId?: string;
   qrcode?: boolean;
-  businessId?: string;
   number?: string;
   integration?: string;
   token?: string;
@@ -38,20 +37,6 @@ export class InstanceDto extends IntegrationDto {
     byEvents?: boolean;
     base64?: boolean;
   };
-  chatwootAccountId?: string;
-  chatwootConversationPending?: boolean;
-  chatwootAutoCreate?: boolean;
-  chatwootDaysLimitImportMessages?: number;
-  chatwootImportContacts?: boolean;
-  chatwootImportMessages?: boolean;
-  chatwootLogo?: string;
-  chatwootMergeBrazilContacts?: boolean;
-  chatwootNameInbox?: string;
-  chatwootOrganization?: string;
-  chatwootReopenConversation?: boolean;
-  chatwootSignMsg?: boolean;
-  chatwootToken?: string;
-  chatwootUrl?: string;
 }
 
 export class SetPresenceDto {
